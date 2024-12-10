@@ -2,10 +2,14 @@ package org.chocosolver.capi;
 
 import org.chocosolver.solver.Model;
 import org.chocosolver.solver.constraints.Constraint;
+import org.chocosolver.solver.constraints.ConstraintsName;
+import org.chocosolver.solver.constraints.Propagator;
 import org.chocosolver.solver.constraints.extension.Tuples;
 import org.chocosolver.solver.constraints.extension.hybrid.HybridTuples;
 import org.chocosolver.solver.constraints.extension.hybrid.ISupportable;
 import org.chocosolver.solver.constraints.nary.circuit.CircuitConf;
+import org.chocosolver.solver.constraints.nary.cumulative.Cumulative;
+import org.chocosolver.solver.constraints.nary.cumulative.PropGraphCumulative;
 import org.chocosolver.solver.variables.*;
 import org.chocosolver.solver.constraints.nary.automata.FA.IAutomaton;
 import org.chocosolver.solver.constraints.nary.automata.FA.ICostAutomaton;
@@ -687,6 +691,30 @@ public class ConstraintApi {
         Constraint cumulative = model.cumulative(tasks, heights, capacity, incr);
         ObjectHandle res = globalHandles.create(cumulative);
         return res;
+    }
+
+    @CEntryPoint(name = Constants.METHOD_PREFIX + API_PREFIX + "cumulative_impl")
+    public static void cumulative_impl(IsolateThread thread, ObjectHandle modelHandle,
+                                               ObjectHandle bvHandle,
+                                               ObjectHandle startHandle,
+                                                ObjectHandle durHandle,
+                                                ObjectHandle endHandle,
+                                                ObjectHandle heightsHandle,
+                                                ObjectHandle capacityHandle, boolean incr) {
+
+        Model model = globalHandles.get(modelHandle);
+        BoolVar bv = globalHandles.get(bvHandle);
+        IntVar[] start = globalHandles.get(startHandle);
+        IntVar[] dur = globalHandles.get(durHandle);
+        IntVar[] end = globalHandles.get(endHandle);
+        IntVar[] heights = globalHandles.get(heightsHandle);
+        IntVar capacity = globalHandles.get(capacityHandle);
+
+        Constraint cons = new Constraint(ConstraintsName.CUMULATIVE, new Propagator[]{
+                new PropGraphCumulative(start, dur, end, heights, capacity, false, Cumulative.Filter.DEFAULT.make(start.length)),
+                new PropGraphCumulative(start, dur, end, heights, capacity, true, Cumulative.Filter.DEFAULT.make(start.length))
+        });
+        model.ifThen(bv, cons);
     }
 
     @CEntryPoint(name = Constants.METHOD_PREFIX + API_PREFIX + "decreasing")
