@@ -3,13 +3,16 @@ package org.chocosolver.capi;
 import org.chocosolver.solver.Model;
 import org.chocosolver.solver.constraints.Constraint;
 import org.chocosolver.solver.constraints.ConstraintsName;
+import org.chocosolver.solver.constraints.ImpliedConstraint;
 import org.chocosolver.solver.constraints.Propagator;
 import org.chocosolver.solver.constraints.extension.Tuples;
 import org.chocosolver.solver.constraints.extension.hybrid.HybridTuples;
 import org.chocosolver.solver.constraints.extension.hybrid.ISupportable;
 import org.chocosolver.solver.constraints.nary.circuit.CircuitConf;
+import org.chocosolver.solver.constraints.nary.cumulative.CumulFilter;
 import org.chocosolver.solver.constraints.nary.cumulative.Cumulative;
 import org.chocosolver.solver.constraints.nary.cumulative.PropGraphCumulative;
+import org.chocosolver.solver.exception.SolverException;
 import org.chocosolver.solver.variables.*;
 import org.chocosolver.solver.constraints.nary.automata.FA.IAutomaton;
 import org.chocosolver.solver.constraints.nary.automata.FA.ICostAutomaton;
@@ -20,6 +23,10 @@ import org.graalvm.nativeimage.ObjectHandles;
 import org.graalvm.nativeimage.c.function.CEntryPoint;
 import org.graalvm.nativeimage.c.type.CCharPointer;
 import org.graalvm.nativeimage.c.type.CTypeConversion;
+
+import java.util.Arrays;
+
+import static org.chocosolver.solver.constraints.extension.TuplesFactory.arithm;
 
 
 /**
@@ -710,12 +717,17 @@ public class ConstraintApi {
         IntVar[] heights = globalHandles.get(heightsHandle);
         IntVar capacity = globalHandles.get(capacityHandle);
 
-        Constraint cons = new Constraint(ConstraintsName.CUMULATIVE, new Propagator[]{
+        new Constraint(ConstraintsName.CUMULATIVE, new Propagator[]{
                 new PropGraphCumulative(start, dur, end, heights, capacity, false, Cumulative.Filter.DEFAULT.make(start.length)),
                 new PropGraphCumulative(start, dur, end, heights, capacity, true, Cumulative.Filter.DEFAULT.make(start.length))
-        });
-        model.ifThen(bv, cons);
+        }).impliedBy(bv);
+
+        for (int i = 0; i < start.length; i++) {
+            model.arithm(start[i],"+", dur[i],"=",end[i]).impliedBy(bv);
+        }
     }
+
+
 
     @CEntryPoint(name = Constants.METHOD_PREFIX + API_PREFIX + "decreasing")
     public static ObjectHandle decreasing(IsolateThread thread, ObjectHandle modelHandle,
